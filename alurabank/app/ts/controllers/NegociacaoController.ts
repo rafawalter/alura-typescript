@@ -1,6 +1,10 @@
 import { NegociacoesView, MensagemView } from "../views/index";
 import { Negociacoes, Negociacao } from "../models/index";
-import { domInject, meuDecoratorDeClasse } from "../helpers/decorators/index";
+import { domInject, meuDecoratorDeClasse, throttle } from "../helpers/decorators/index";
+import { NegociacaoParcial } from "../models/NegociacaoParcial";
+import { NegociacaoService } from "../services/index";
+
+let timer = 0;
 
 @meuDecoratorDeClasse()
 export class NegociacaoController {
@@ -17,12 +21,14 @@ export class NegociacaoController {
     private _negociacoes = new Negociacoes();
     private _negociacoesView = new NegociacoesView('#negociacoesView');
     private _mensagemView = new MensagemView('#mensagemView');
+    private _service = new NegociacaoService();
 
     constructor() {
 
         this._negociacoesView.update(this._negociacoes);
     }
 
+    @throttle()
     adiciona(event: Event) {
 
         event.preventDefault();
@@ -50,6 +56,23 @@ export class NegociacaoController {
         return ((data.getDay() != DiaDaSemana.Sabado)
             && (data.getDay() != DiaDaSemana.Domingo));
     }
+
+    @throttle()
+    importarDados() {
+
+        this._service
+            .obterNegociacoes(res => {
+                if(res.ok) return res;
+                throw new Error(res.statusText);
+            })
+            .then(negociacoes => {
+                if (negociacoes!= null) {
+                    negociacoes.forEach(negociacao =>
+                        this._negociacoes.adiciona(negociacao));    
+                }
+                this._negociacoesView.update(this._negociacoes);
+            })
+    } 
 
 }
 
